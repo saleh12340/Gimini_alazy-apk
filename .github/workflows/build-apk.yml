@@ -2,7 +2,9 @@ name: Build Android APK
 
 on:
   push:
-    branches: [ main, master ]
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
 
 jobs:
   build:
@@ -20,19 +22,20 @@ jobs:
     - name: Set up Flutter
       uses: subosito/flutter-action@v2
       with:
+        flutter-version: '3.19.x'
         channel: 'stable'
-
-    - name: Generate Android platform files
-      run: flutter create . --platforms=android
 
     - name: Install dependencies
       run: flutter pub get
 
-    - name: Build APK
-      run: flutter build apk --release
+    - name: Analyze code
+      run: flutter analyze
 
-    - name: Upload APK Release
+    - name: Build APK
+      run: flutter build apk --split-per-abi
+
+    - name: Upload APK
       uses: actions/upload-artifact@v4
       with:
-        name: AlEzzi-Grocery-App
-        path: build/app/outputs/flutter-apk/app-release.apk
+        name: app-release
+        path: build/app/outputs/flutter-apk/app-armeabi-v7a-release.apk
