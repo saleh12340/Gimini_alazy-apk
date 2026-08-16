@@ -41,17 +41,3 @@ class AlEzziApp extends StatelessWidget {
     );
   }
 }
-        useMaterial3: true,
-        fontFamily: 'sans-serif',
-      ),
-      home: const HomeScreen(),
-    );
-  }
-}
-        useMaterial3: true,
-        fontFamily: 'sans-serif',
-      ),
-      home: const HomeScreen(),
-    );
-  }
-}
