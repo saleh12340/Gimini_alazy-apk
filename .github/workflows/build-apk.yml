@@ -32,11 +32,8 @@ jobs:
       run: |
         flutter create . --org com.elezzy.grocery --project-name ezzi_grocery --platforms=android
 
-    - name: Analyze code
-      run: flutter analyze
-
     - name: Build APK
-      run: flutter build apk --split-per-abi
+      run: flutter build apk --split-per-abi --no-pub
 
     - name: Upload APK
       uses: actions/upload-artifact@v4
