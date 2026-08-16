@@ -1,4 +1,4 @@
-import 'package0:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:provider/provider.dart';
 import 'providers/app_provider.dart';
@@ -34,6 +34,13 @@ class AlEzziApp extends StatelessWidget {
       ],
       theme: ThemeData(
         primarySwatch: Colors.green,
+        useMaterial3: true,
+        fontFamily: 'sans-serif',
+      ),
+      home: const HomeScreen(),
+    );
+  }
+}
         useMaterial3: true,
         fontFamily: 'sans-serif',
       ),
