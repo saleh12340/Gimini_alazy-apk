@@ -1,6 +1,23 @@
 import 'package:flutter/material.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
+import 'package:pdf/pdf.dart';
+import 'package:url_launcher/url_launcher.dart';
+
+// --- نموذج بيانات العميل ---
+class Customer {
+  String name;
+  String phone;
+  double balance;
+  Customer({required this.name, required this.phone, this.balance = 0.0});
+}
+
+// --- نموذج أصناف الفاتورة ---
+class InvoiceItem {
+  String detail;
+  double amount;
+  InvoiceItem({required this.detail, required this.amount});
+}
 
 // 1. الشاشة الرئيسية للتنقل السفلي
 class MainNavigationScreen extends StatefulWidget {
@@ -54,24 +71,78 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
   }
 }
 
-// 2. شاشة الحسابات والديون والعملاء
-class AccountsScreen extends StatelessWidget {
+// 2. شاشة الحسابات والديون والعملاء (مع إمكانية إضافة عميل جديد برقم الهاتف)
+class AccountsScreen extends StatefulWidget {
   const AccountsScreen({super.key});
 
-  final List<Map<String, dynamic>> _accounts = const [
-    {'name': 'أحمد علي', 'amount': 15000, 'phone': '770000000'},
-    {'name': 'محمد محسن', 'amount': -5000, 'phone': '730000000'},
-    {'name': 'صالح ناصر', 'amount': 25000, 'phone': '710000000'},
-    {'name': 'طارق فؤاد الحاج', 'amount': 20650, 'phone': '771111111'},
+  @override
+  State<AccountsScreen> createState() => _AccountsScreenState();
+}
+
+class _AccountsScreenState extends State<AccountsScreen> {
+  final List<Customer> _customers = [
+    Customer(name: 'أحمد علي', phone: '770000000', balance: 15000),
+    Customer(name: 'محمد محسن', phone: '730000000', balance: -5000),
+    Customer(name: 'صالح ناصر', phone: '710000000', balance: 25000),
+    Customer(name: 'طارق فؤاد الحاج', phone: '771111111', balance: 20650),
   ];
+
+  void _addNewCustomerDialog(BuildContext context) {
+    final nameController = TextEditingController();
+    final phoneController = TextEditingController();
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('إضافة عميل جديد'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              controller: nameController,
+              decoration: const InputDecoration(labelText: 'اسم العميل'),
+            ),
+            const SizedBox(height: 10),
+            TextField(
+              controller: phoneController,
+              keyboardType: TextInputType.phone,
+              decoration: const InputDecoration(labelText: 'رقم الواتساب (مثال: 771111111)'),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('إلغاء'),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.green, foregroundColor: Colors.white),
+            onPressed: () {
+              if (nameController.text.isNotEmpty && phoneController.text.isNotEmpty) {
+                setState(() {
+                  _customers.add(Customer(
+                    name: nameController.text,
+                    phone: phoneController.text,
+                    balance: 0.0,
+                  ));
+                });
+                Navigator.pop(context);
+              }
+            },
+            child: const Text('حفظ وإضافة'),
+          ),
+        ],
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
-    double totalBalance = _accounts.fold(0, (sum, item) => sum + (item['amount'] as num));
+    double totalBalance = _customers.fold(0, (sum, item) => sum + item.balance);
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('إدارة الحسابات والديون'),
+        title: const Text('إدارة الحسابات والعملاء'),
         centerTitle: true,
       ),
       body: Column(
@@ -104,10 +175,9 @@ class AccountsScreen extends StatelessWidget {
           ),
           Expanded(
             child: ListView.builder(
-              itemCount: _accounts.length,
+              itemCount: _customers.length,
               itemBuilder: (context, index) {
-                final account = _accounts[index];
-                final double amount = account['amount'];
+                final customer = _customers[index];
                 return Card(
                   margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                   child: ListTile(
@@ -116,22 +186,22 @@ class AccountsScreen extends StatelessWidget {
                       child: const Icon(Icons.person, color: Colors.green),
                     ),
                     title: Text(
-                      account['name'],
+                      customer.name,
                       style: const TextStyle(fontWeight: FontWeight.bold),
                     ),
-                    subtitle: Text('الهاتف: ${account['phone']}'),
+                    subtitle: Text('الهاتف: ${customer.phone}'),
                     trailing: Text(
-                      '$amount ر.ي',
+                      '${customer.balance} ر.ي',
                       style: TextStyle(
                         fontWeight: FontWeight.bold,
-                        color: amount >= 0 ? Colors.green : Colors.red,
+                        color: customer.balance >= 0 ? Colors.green : Colors.red,
                       ),
                     ),
                     onTap: () {
                       Navigator.push(
                         context,
                         MaterialPageRoute(
-                          builder: (context) => CreateInvoiceScreen(customerName: account['name']),
+                          builder: (context) => CustomerDetailScreen(customer: customer),
                         ),
                       );
                     },
@@ -142,11 +212,130 @@ class AccountsScreen extends StatelessWidget {
           ),
         ],
       ),
+      floatingActionButton: FloatingActionButton(
+        onPressed: () => _addNewCustomerDialog(context),
+        backgroundColor: Colors.green,
+        child: const Icon(Icons.person_add, color: Colors.white),
+      ),
     );
   }
 }
 
-// 3. شاشة الفواتير وسجل العمليات
+// 3. شاشة العميل الخاصة (تتيح إرسال واتساب، طباعة كشف الحساب، أو تعديله)
+class CustomerDetailScreen extends StatelessWidget {
+  final Customer customer;
+  const CustomerDetailScreen({super.key, required this.customer});
+
+  Future<void> _sendWhatsAppMessage() async {
+    final url = Uri.parse("https://wa.me/967${customer.phone}?text=مرحباً بك يا أخي ${customer.name}، نود تذكيركم بأن رصيدكم الحالي لدى (بقالة العزي للمواد الغذائية) هو: ${customer.balance} ريال يمني. وشكراً لكم.");
+    if (await canLaunchUrl(url)) {
+      await launchUrl(url, mode: LaunchMode.externalApplication);
+    }
+  }
+
+  Future<void> _printCustomerStatement() async {
+    final doc = pw.Document();
+    final font = await PdfGoogleFonts.cairoRegular();
+    final fontBold = await PdfGoogleFonts.cairoBold();
+
+    doc.addPage(
+      pw.Page(
+        pageFormat: PdfPageFormat.roll80,
+        build: (pw.Context context) {
+          return pw.Directionality(
+            textDirection: pw.TextDirection.rtl,
+            child: pw.Column(
+              crossAxisAlignment: pw.CrossAxisAlignment.start,
+              children: [
+                pw.Center(
+                  child: pw.Text('بقالة العزي للمواد الغذائية', style: pw.TextStyle(font: fontBold, fontSize: 14)),
+                ),
+                pw.Center(
+                  child: pw.Text('كشف حساب عميل', style: pw.TextStyle(font: font, fontSize: 10)),
+                ),
+                pw.Divider(),
+                pw.Text('اسم العميل: ${customer.name}', style: pw.TextStyle(font: fontBold, fontSize: 11)),
+                pw.Text('رقم الهاتف: ${customer.phone}', style: pw.TextStyle(font: font, fontSize: 10)),
+                pw.Divider(),
+                pw.SizedBox(height: 10),
+                pw.Row(
+                  mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                  children: [
+                    pw.Text('الرصيد الإجمالي:', style: pw.TextStyle(font: fontBold, fontSize: 12)),
+                    pw.Text('${customer.balance} ر.ي', style: pw.TextStyle(font: fontBold, fontSize: 12)),
+                  ],
+                ),
+                pw.SizedBox(height: 15),
+                pw.Center(child: pw.Text('شكراً لتعاملكم معنا', style: pw.TextStyle(font: font, fontSize: 9))),
+              ],
+            ),
+          );
+        },
+      ),
+    );
+
+    await Printing.layoutPdf(onLayout: (format) async => doc.save());
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: Text('حساب العميل: ${customer.name}'),
+        centerTitle: true,
+      ),
+      body: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                color: Colors.green.shade50,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: Colors.green.shade200),
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text('الرصيد الحالي:', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                  Text('${customer.balance} ر.ي', style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.green)),
+                ],
+              ),
+            ),
+            const SizedBox(height: 20),
+            ListTile(
+              leading: const Icon(Icons.phone, color: Colors.blue),
+              title: const Text('رقم الواتساب'),
+              subtitle: Text(customer.phone),
+            ),
+            const Spacer(),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              children: [
+                ElevatedButton.icon(
+                  style: ElevatedButton.styleFrom(backgroundColor: Colors.teal, foregroundColor: Colors.white),
+                  onPressed: _sendWhatsAppMessage,
+                  icon: const Icon(Icons.chat),
+                  label: const Text('مراسلة واتساب'),
+                ),
+                ElevatedButton.icon(
+                  style: ElevatedButton.styleFrom(backgroundColor: Colors.green, foregroundColor: Colors.white),
+                  onPressed: _printCustomerStatement,
+                  icon: const Icon(Icons.print),
+                  label: const Text('طباعة الكشف'),
+                ),
+              ],
+            ),
+            const SizedBox(height: 20),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// 4. شاشة الفواتير وسجل العمليات
 class InvoicesScreen extends StatelessWidget {
   const InvoicesScreen({super.key});
 
@@ -194,7 +383,7 @@ class InvoicesScreen extends StatelessWidget {
   }
 }
 
-// 4. شاشة إنشاء وعرض الفاتورة التفصيلية مع الطباعة والـ PDF
+// 5. شاشة إنشاء وعرض الفاتورة التفصيلية وتعديل اسم العميل مع الطابعة الحرارية والـ PDF
 class CreateInvoiceScreen extends StatefulWidget {
   final String customerName;
   const CreateInvoiceScreen({super.key, required this.customerName});
@@ -204,17 +393,24 @@ class CreateInvoiceScreen extends StatefulWidget {
 }
 
 class _CreateInvoiceScreenState extends State<CreateInvoiceScreen> {
+  late TextEditingController _nameController;
   final TextEditingController _detailController = TextEditingController();
   final TextEditingController _amountController = TextEditingController();
 
-  final List<Map<String, dynamic>> _items = [
-    {'detail': 'زيت لترين ونص', 'amount': 2400.0},
-    {'detail': 'حوايج', 'amount': 500.0},
-    {'detail': 'هرد', 'amount': 500.0},
-    {'detail': 'رز بسمتي السحاب', 'amount': 3750.0},
-    {'detail': 'شاهي', 'amount': 900.0},
-    {'detail': 'كيس بر الشام', 'amount': 12600.0},
+  final List<InvoiceItem> _items = [
+    InvoiceItem(detail: 'زيت لترين ونص', amount: 2400.0),
+    InvoiceItem(detail: 'حوايج', amount: 500.0),
+    InvoiceItem(detail: 'هرد', amount: 500.0),
+    InvoiceItem(detail: 'رز بسمتي السحاب', amount: 3750.0),
+    InvoiceItem(detail: 'شاهي', amount: 900.0),
+    InvoiceItem(detail: 'كيس بر الشام', amount: 12600.0),
   ];
+
+  @override
+  void initState() {
+    super.initState();
+    _nameController = TextEditingController(text: widget.customerName);
+  }
 
   void _addItem() {
     if (_detailController.text.isEmpty || _amountController.text.isEmpty) return;
@@ -222,65 +418,86 @@ class _CreateInvoiceScreenState extends State<CreateInvoiceScreen> {
     if (parsedAmount == null) return;
 
     setState(() {
-      _items.add({
-        'detail': _detailController.text,
-        'amount': parsedAmount,
-      });
+      _items.add(InvoiceItem(
+        detail: _detailController.text,
+        amount: parsedAmount,
+      ));
       _detailController.clear();
       _amountController.clear();
     });
   }
 
-  // دالة الطباعة وتصدير PDF
   Future<void> _printInvoice(double totalBalance) async {
     final doc = pw.Document();
+    final font = await PdfGoogleFonts.cairoRegular();
+    final fontBold = await PdfGoogleFonts.cairoBold();
 
     doc.addPage(
       pw.Page(
+        pageFormat: PdfPageFormat.roll80,
         build: (pw.Context context) {
-          return pw.Column(
-            crossAxisAlignment: pw.CrossAxisAlignment.end,
-            children: [
-              pw.Text('بقالة العزي للمواد الغذائية', style: pw.TextStyle(fontSize: 22, fontWeight: pw.FontWeight.bold)),
-              pw.SizedBox(height: 10),
-              pw.Text('العميل: ${widget.customerName}', style: const pw.TextStyle(fontSize: 16)),
-              pw.Text('التاريخ: 2026/8/17', style: const pw.TextStyle(fontSize: 14)),
-              pw.Divider(),
-              pw.SizedBox(height: 10),
-              pw.Table.fromTextArray(
-                headers: ['التفاصيل', 'المبلغ', 'الرصيد'],
-                data: _items.map((item) {
-                  return [item['detail'].toString(), item['amount'].toString(), ''];
-                }).toList(),
-              ),
-              pw.SizedBox(height: 20),
-              pw.Text('إجمالي الحساب: $totalBalance ر.ي', style: pw.TextStyle(fontSize: 18, fontWeight: pw.FontWeight.bold)),
-            ],
+          return pw.Directionality(
+            textDirection: pw.TextDirection.rtl,
+            child: pw.Column(
+              crossAxisAlignment: pw.CrossAxisAlignment.start,
+              children: [
+                pw.Center(
+                  child: pw.Text('بقالة العزي للمواد الغذائية', style: pw.TextStyle(font: fontBold, fontSize: 14)),
+                ),
+                pw.Center(
+                  child: pw.Text('فاتورة مبيعات نقدية / أُجل', style: pw.TextStyle(font: font, fontSize: 9)),
+                ),
+                pw.Divider(),
+                pw.Text('العميل: ${_nameController.text}', style: pw.TextStyle(font: fontBold, fontSize: 11)),
+                pw.Text('التاريخ: 2026/8/17', style: pw.TextStyle(font: font, fontSize: 9)),
+                pw.Divider(),
+                pw.SizedBox(height: 5),
+                pw.Table.fromTextArray(
+                  context: context,
+                  cellStyle: pw.TextStyle(font: font, fontSize: 9),
+                  headerStyle: pw.TextStyle(font: fontBold, fontSize: 9, color: PdfColors.white),
+                  headerDecoration: const pw.BoxDecoration(color: PdfColors.green),
+                  headers: ['التفاصيل', 'المبلغ'],
+                  data: _items.map((item) {
+                    return [item.detail, item.amount.toString()];
+                  }).toList(),
+                ),
+                pw.SizedBox(height: 10),
+                pw.Divider(),
+                pw.Row(
+                  mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                  children: [
+                    pw.Text('الإجمالي المطلوب:', style: pw.TextStyle(font: fontBold, fontSize: 11)),
+                    pw.Text('$totalBalance ر.ي', style: pw.TextStyle(font: fontBold, fontSize: 11)),
+                  ],
+                ),
+                pw.SizedBox(height: 10),
+                pw.Center(child: pw.Text('شكراً لتعاملكم معنا', style: pw.TextStyle(font: font, fontSize: 8))),
+              ],
+            ),
           );
         },
       ),
     );
 
-    await Printing.layoutPdf(
-      onLayout: (format) async => doc.save(),
-    );
+    await Printing.layoutPdf(onLayout: (format) async => doc.save());
   }
 
   @override
   Widget build(BuildContext context) {
     double runningBalance = 0;
     List<Map<String, dynamic>> processedItems = _items.map((item) {
-      runningBalance += (item['amount'] as num);
+      runningBalance += item.amount;
       return {
-        'detail': item['detail'],
-        'amount': item['amount'],
+        'detail': item.detail,
+        'amount': item.amount,
         'balance': runningBalance,
       };
     }).toList();
 
     return Scaffold(
       appBar: AppBar(
-        title: Text('دفتر الفاتورة: ${widget.customerName}'),
+        title: const Text('تحرير فاتورة جديدة'),
         centerTitle: true,
         actions: [
           IconButton(
@@ -293,29 +510,18 @@ class _CreateInvoiceScreenState extends State<CreateInvoiceScreen> {
       body: Column(
         children: [
           Container(
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.all(12),
             color: Colors.green.shade50,
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Row(
-                  children: [
-                    const Icon(Icons.person, color: Colors.green),
-                    const SizedBox(width: 8),
-                    Text(
-                      'العميل : ${widget.customerName}',
-                      style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                    ),
-                  ],
-                ),
-                const Row(
-                  children: [
-                    Icon(Icons.calendar_today, size: 18, color: Colors.grey),
-                    SizedBox(width: 4),
-                    Text('2026/8/17', style: TextStyle(fontWeight: FontWeight.bold)),
-                  ],
-                ),
-              ],
+            child: TextField(
+              controller: _nameController,
+              decoration: const InputDecoration(
+                labelText: 'اسم العميل في رأس الفاتورة',
+                border: OutlineInputBorder(),
+                isDense: true,
+                filled: true,
+                fillColor: Colors.white,
+              ),
+              style: const TextStyle(fontWeight: FontWeight.bold),
             ),
           ),
           Padding(
@@ -327,7 +533,7 @@ class _CreateInvoiceScreenState extends State<CreateInvoiceScreen> {
                   child: TextField(
                     controller: _detailController,
                     decoration: const InputDecoration(
-                      labelText: 'التفاصيل (اسم المنتج)',
+                      labelText: 'اسم الصنف أو التفاصيل',
                       border: OutlineInputBorder(),
                       isDense: true,
                     ),
@@ -340,7 +546,7 @@ class _CreateInvoiceScreenState extends State<CreateInvoiceScreen> {
                     controller: _amountController,
                     keyboardType: TextInputType.number,
                     decoration: const InputDecoration(
-                      labelText: 'المبلغ (عليه)',
+                      labelText: 'المبلغ',
                       border: OutlineInputBorder(),
                       isDense: true,
                     ),
@@ -360,7 +566,7 @@ class _CreateInvoiceScreenState extends State<CreateInvoiceScreen> {
             child: const Row(
               children: [
                 Expanded(flex: 3, child: Text('التفاصيل', style: TextStyle(fontWeight: FontWeight.bold), textAlign: TextAlign.right)),
-                Expanded(flex: 2, child: Text('عليه', style: TextStyle(fontWeight: FontWeight.bold), textAlign: TextAlign.center)),
+                Expanded(flex: 2, child: Text('المبلغ', style: TextStyle(fontWeight: FontWeight.bold), textAlign: TextAlign.center)),
                 Expanded(flex: 3, child: Text('الرصيد التراكمي', style: TextStyle(fontWeight: FontWeight.bold), textAlign: TextAlign.center)),
               ],
             ),
@@ -402,8 +608,6 @@ class _CreateInvoiceScreenState extends State<CreateInvoiceScreen> {
                               '${item['balance']}',
                               style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: Colors.red),
                             ),
-                            const SizedBox(width: 4),
-                            const Icon(Icons.circle, size: 10, color: Colors.red),
                           ],
                         ),
                       ),
@@ -441,7 +645,7 @@ class _CreateInvoiceScreenState extends State<CreateInvoiceScreen> {
   }
 }
 
-// 5. شاشة المنتجات
+// 6. شاشة المنتجات
 class ProductsScreenTab extends StatelessWidget {
   const ProductsScreenTab({super.key});
 
