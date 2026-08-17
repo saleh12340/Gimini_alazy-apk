@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'create_invoice_screen.dart';
 
 class InvoicesScreen extends StatefulWidget {
   const InvoicesScreen({super.key});
@@ -10,9 +11,9 @@ class InvoicesScreen extends StatefulWidget {
 class _InvoicesScreenState extends State<InvoicesScreen> {
   // قائمة تجريبية للفواتير المسجلة
   final List<Map<String, dynamic>> _invoices = [
-    {'id': '#101', 'customer': 'أحمد علي', 'total': 4500, 'date': '2026-08-17'},
+    {'id': '#101', 'customer': 'طارق فؤاد الحاج', 'total': 20650, 'date': '2026-08-17'},
     {'id': '#102', 'customer': 'محمد محسن', 'total': 12000, 'date': '2026-08-16'},
-    {'id': '#103', 'customer': 'زبون نقدي', 'total': 2500, 'date': '2026-08-16'},
+    {'id': '#103', 'customer': 'أحمد علي', 'total': 4500, 'date': '2026-08-16'},
   ];
 
   @override
@@ -80,6 +81,15 @@ class _InvoicesScreenState extends State<InvoicesScreen> {
                         fontSize: 16,
                       ),
                     ),
+                    onTap: () {
+                      // فتح صفحة تفاصيل الفاتورة عند النقر عليها
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => const CreateInvoiceScreen(),
+                        ),
+                      );
+                    },
                   ),
                 );
               },
@@ -89,9 +99,12 @@ class _InvoicesScreenState extends State<InvoicesScreen> {
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: () {
-          // زر لإضافة فاتورة جديدة مستقبلاً
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('خاصية إنشاء فاتورة جديدة قيد التفعيل')),
+          // الانتقال إلى شاشة إنشاء فاتورة جديدة عند الضغط على الزر
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => const CreateInvoiceScreen(),
+            ),
           );
         },
         backgroundColor: Colors.blue,
