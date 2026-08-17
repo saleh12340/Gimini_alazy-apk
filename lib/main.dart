@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:provider/provider.dart';
 import 'providers/app_provider.dart';
-import 'screens/products_screen.dart';
+import 'screens/main_navigation_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -37,7 +37,7 @@ class AlEzziApp extends StatelessWidget {
         useMaterial3: true,
         fontFamily: 'sans-serif',
       ),
-      home: const ProductsScreen(),
+      home: const MainNavigationScreen(),
     );
   }
 }
