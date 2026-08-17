@@ -28,12 +28,8 @@ class EzziGroceryApp extends StatelessWidget {
       title: 'بقالة العزي',
       theme: ThemeData(
         primarySwatch: Colors.green,
-        fontFamily: 'Cairo',
         useMaterial3: true,
-        appBarTheme: const AppBarTheme(
-          elevation: 0,
-          centerTitle: true,
-        ),
+        fontFamily: 'Cairo',
       ),
       home: const HomeScreen(),
     );
@@ -69,32 +65,21 @@ class Customer {
       };
 
   factory Customer.fromJson(Map<String, dynamic> json) => Customer(
-        id: json['id'],
-        name: json['name'],
-        phone: json['phone'],
+        id: json['id'] ?? DateTime.now().millisecondsSinceEpoch.toString(),
+        name: json['name'] ?? '',
+        phone: json['phone'] ?? '',
         balance: (json['balance'] ?? 0.0).toDouble(),
-        createdAt: DateTime.parse(json['createdAt']),
-        lastUpdated: DateTime.parse(json['lastUpdated']),
+        createdAt: json['createdAt'] != null 
+            ? DateTime.parse(json['createdAt']) 
+            : DateTime.now(),
+        lastUpdated: json['lastUpdated'] != null 
+            ? DateTime.parse(json['lastUpdated']) 
+            : DateTime.now(),
       );
-
-  Customer copyWith({
-    String? name,
-    String? phone,
-    double? balance,
-    DateTime? lastUpdated,
-  }) {
-    return Customer(
-      id: id,
-      name: name ?? this.name,
-      phone: phone ?? this.phone,
-      balance: balance ?? this.balance,
-      createdAt: createdAt,
-      lastUpdated: lastUpdated ?? DateTime.now(),
-    );
-  }
 }
 
-// ==================== Transaction Model ====================
+enum TransactionType { add, subtract, initial }
+
 class Transaction {
   final String id;
   final String customerId;
@@ -116,25 +101,22 @@ class Transaction {
         'id': id,
         'customerId': customerId,
         'amount': amount,
-        'type': type.toString(),
+        'type': type.index,
         'description': description,
         'timestamp': timestamp.toIso8601String(),
       };
 
   factory Transaction.fromJson(Map<String, dynamic> json) => Transaction(
-        id: json['id'],
-        customerId: json['customerId'],
+        id: json['id'] ?? DateTime.now().millisecondsSinceEpoch.toString(),
+        customerId: json['customerId'] ?? '',
         amount: (json['amount'] ?? 0.0).toDouble(),
-        type: TransactionType.values.firstWhere(
-          (e) => e.toString() == json['type'],
-          orElse: () => TransactionType.add,
-        ),
+        type: TransactionType.values[json['type'] ?? 0],
         description: json['description'] ?? '',
-        timestamp: DateTime.parse(json['timestamp']),
+        timestamp: json['timestamp'] != null 
+            ? DateTime.parse(json['timestamp']) 
+            : DateTime.now(),
       );
 }
-
-enum TransactionType { add, subtract, initial }
 
 // ==================== Provider ====================
 class GroceryProvider extends ChangeNotifier {
@@ -161,28 +143,40 @@ class GroceryProvider extends ChangeNotifier {
   }
 
   List<Transaction> getCustomerTransactions(String customerId) {
-    return _transactions
-        .where((t) => t.customerId == customerId)
-        .toList()
-      ..sort((a, b) => b.timestamp.compareTo(a.timestamp));
+    final List<Transaction> result = [];
+    for (var t in _transactions) {
+      if (t.customerId == customerId) {
+        result.add(t);
+      }
+    }
+    result.sort((a, b) => b.timestamp.compareTo(a.timestamp));
+    return result;
   }
 
   void _loadData() {
     try {
       // Load customers
       final String? customersData = _prefs.getString(_customersKey);
-      if (customersData != null) {
+      if (customersData != null && customersData.isNotEmpty) {
         final List<dynamic> jsonList = json.decode(customersData);
-        _customers = jsonList.map((json) => Customer.fromJson(json)).toList();
+        _customers = [];
+        for (var json in jsonList) {
+          _customers.add(Customer.fromJson(json));
+        }
       } else {
         _customers = _getDefaultCustomers();
       }
 
       // Load transactions
       final String? transactionsData = _prefs.getString(_transactionsKey);
-      if (transactionsData != null) {
+      if (transactionsData != null && transactionsData.isNotEmpty) {
         final List<dynamic> jsonList = json.decode(transactionsData);
-        _transactions = jsonList.map((json) => Transaction.fromJson(json)).toList();
+        _transactions = [];
+        for (var json in jsonList) {
+          _transactions.add(Transaction.fromJson(json));
+        }
+      } else {
+        _transactions = [];
       }
     } catch (e) {
       _customers = _getDefaultCustomers();
@@ -210,11 +204,17 @@ class GroceryProvider extends ChangeNotifier {
 
   void _saveData() {
     try {
-      final String customersJson = json.encode(_customers.map((c) => c.toJson()).toList());
-      _prefs.setString(_customersKey, customersJson);
+      final List<Map<String, dynamic>> customersJson = [];
+      for (var c in _customers) {
+        customersJson.add(c.toJson());
+      }
+      _prefs.setString(_customersKey, json.encode(customersJson));
       
-      final String transactionsJson = json.encode(_transactions.map((t) => t.toJson()).toList());
-      _prefs.setString(_transactionsKey, transactionsJson);
+      final List<Map<String, dynamic>> transactionsJson = [];
+      for (var t in _transactions) {
+        transactionsJson.add(t.toJson());
+      }
+      _prefs.setString(_transactionsKey, json.encode(transactionsJson));
     } catch (e) {
       // Handle error silently
     }
@@ -234,7 +234,6 @@ class GroceryProvider extends ChangeNotifier {
     
     _customers.add(newCustomer);
     
-    // Add initial transaction
     _addTransaction(
       customerId: newCustomer.id,
       amount: 0,
@@ -248,7 +247,9 @@ class GroceryProvider extends ChangeNotifier {
 
   void updateCustomerBalance(String customerId, double amount, {required bool isAdd, String description = ''}) {
     final customer = getCustomerById(customerId);
-    if (customer == null) return;
+    if (customer == null) {
+      throw Exception('العميل غير موجود');
+    }
 
     final newBalance = isAdd ? customer.balance + amount : customer.balance - amount;
     if (newBalance < 0) {
@@ -301,7 +302,11 @@ class GroceryProvider extends ChangeNotifier {
   }
 
   double getTotalBalance() {
-    return _customers.fold(0.0, (sum, customer) => sum + customer.balance);
+    double total = 0.0;
+    for (var c in _customers) {
+      total += c.balance;
+    }
+    return total;
   }
 
   int getTotalCustomers() {
@@ -327,10 +332,12 @@ class HomeScreen extends StatelessWidget {
         actions: [
           IconButton(
             icon: const Icon(Icons.storage),
-            onPressed: () => Navigator.push(
-              context,
-              MaterialPageRoute(builder: (_) => const AllTransactionsScreen()),
-            ),
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const AllTransactionsScreen()),
+              );
+            },
             tooltip: 'جميع المعاملات',
           ),
           PopupMenuButton<String>(
@@ -606,9 +613,6 @@ class HomeScreen extends StatelessWidget {
                   if (value == null || value.trim().isEmpty) {
                     return 'الرجاء إدخال رقم الهاتف';
                   }
-                  if (value.trim().length < 9) {
-                    return 'رقم الهاتف يجب أن يكون 9 أرقام على الأقل';
-                  }
                   return null;
                 },
                 textAlign: TextAlign.right,
@@ -702,7 +706,6 @@ class CustomerDetailScreen extends StatefulWidget {
 class _CustomerDetailScreenState extends State<CustomerDetailScreen> {
   final TextEditingController _amountController = TextEditingController();
   final TextEditingController _descriptionController = TextEditingController();
-  bool _isLoading = true;
   bool _isWhatsAppAvailable = false;
 
   @override
@@ -724,13 +727,12 @@ class _CustomerDetailScreenState extends State<CustomerDetailScreen> {
   Future<void> _checkWhatsAppAvailability() async {
     try {
       final customer = _customer;
-      if (customer != null) {
+      if (customer != null && customer.phone.isNotEmpty) {
         final url = Uri.parse('whatsapp://send?phone=967${customer.phone}');
         final canLaunch = await canLaunchUrl(url);
         if (mounted) {
           setState(() {
             _isWhatsAppAvailable = canLaunch;
-            _isLoading = false;
           });
         }
       }
@@ -738,7 +740,6 @@ class _CustomerDetailScreenState extends State<CustomerDetailScreen> {
       if (mounted) {
         setState(() {
           _isWhatsAppAvailable = false;
-          _isLoading = false;
         });
       }
     }
@@ -748,24 +749,29 @@ class _CustomerDetailScreenState extends State<CustomerDetailScreen> {
     final customer = _customer;
     if (customer == null) return;
 
-    final message = 
-        'مرحباً بك يا أخي ${customer.name}،\n\n'
-        '📊 كشف حسابكم لدى (بقالة العزي للمواد الغذائية)\n'
-        '─────────────────────\n'
-        '💰 الرصيد الحالي: ${customer.balance.toStringAsFixed(0)} ريال يمني\n'
-        '📅 تاريخ الكشف: ${DateTime.now().toLocal().toString().split(' ')[0]}\n'
-        '⏰ الوقت: ${DateTime.now().toLocal().toString().split(' ')[1]}\n'
-        '─────────────────────\n'
-        '🔄 آخر المعاملات:\n';
+    String message = 'مرحباً بك يا أخي ${customer.name}،\n\n';
+    message += '📊 كشف حسابكم لدى (بقالة العزي للمواد الغذائية)\n';
+    message += '─────────────────────\n';
+    message += '💰 الرصيد الحالي: ${customer.balance.toStringAsFixed(0)} ريال يمني\n';
+    message += '📅 تاريخ الكشف: ${_formatDate(DateTime.now())}\n';
+    message += '─────────────────────\n';
+    message += '🔄 آخر المعاملات:\n';
 
     final recentTransactions = _transactions.take(3);
     for (var t in recentTransactions) {
-      final type = t.type == TransactionType.add ? '➕ إضافة' : t.type == TransactionType.subtract ? '➖ خصم' : '📝 افتتاح';
+      String type = '';
+      if (t.type == TransactionType.add) {
+        type = '➕ إضافة';
+      } else if (t.type == TransactionType.subtract) {
+        type = '➖ خصم';
+      } else {
+        type = '📝 افتتاح';
+      }
       message += '  • $type: ${t.amount.toStringAsFixed(0)} ر.ي (${t.description})\n';
     }
 
-    message += '\n📱 للاستفسار: 770000000\n'
-        'شكراً لثقتكم بنا 🙏';
+    message += '\n📱 للاستفسار: 770000000\n';
+    message += 'شكراً لثقتكم بنا 🙏';
 
     final url = Uri.parse(
         'https://wa.me/967${customer.phone}?text=${Uri.encodeComponent(message)}');
@@ -942,89 +948,13 @@ class _CustomerDetailScreenState extends State<CustomerDetailScreen> {
             onPressed: () {
               final provider = Provider.of<GroceryProvider>(context, listen: false);
               provider.deleteCustomer(customer.id);
-              Navigator.pop(context); // Close dialog
-              Navigator.pop(context); // Close detail screen
+              Navigator.pop(context);
+              Navigator.pop(context);
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(content: Text('🗑️ تم حذف العميل ${customer.name}')),
               );
             },
             child: const Text('حذف', style: TextStyle(color: Colors.white)),
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _showEditCustomerDialog() {
-    final customer = _customer;
-    if (customer == null) return;
-
-    final nameController = TextEditingController(text: customer.name);
-    final phoneController = TextEditingController(text: customer.phone);
-    final formKey = GlobalKey<FormState>();
-
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('تعديل بيانات العميل', textAlign: TextAlign.center),
-        content: Form(
-          key: formKey,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextFormField(
-                controller: nameController,
-                decoration: const InputDecoration(
-                  labelText: 'اسم العميل',
-                  border: OutlineInputBorder(),
-                  prefixIcon: Icon(Icons.person),
-                ),
-                validator: (value) {
-                  if (value == null || value.trim().isEmpty) {
-                    return 'الرجاء إدخال اسم العميل';
-                  }
-                  return null;
-                },
-                textAlign: TextAlign.right,
-              ),
-              const SizedBox(height: 12),
-              TextFormField(
-                controller: phoneController,
-                keyboardType: TextInputType.phone,
-                decoration: const InputDecoration(
-                  labelText: 'رقم الهاتف',
-                  border: OutlineInputBorder(),
-                  prefixIcon: Icon(Icons.phone),
-                ),
-                validator: (value) {
-                  if (value == null || value.trim().isEmpty) {
-                    return 'الرجاء إدخال رقم الهاتف';
-                  }
-                  return null;
-                },
-                textAlign: TextAlign.right,
-              ),
-            ],
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('إلغاء'),
-          ),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.blue),
-            onPressed: () {
-              if (formKey.currentState!.validate()) {
-                // Note: In a real app, you would update the customer
-                // For now, we'll just show a message
-                Navigator.pop(context);
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('✅ تم تحديث البيانات')),
-                );
-              }
-            },
-            child: const Text('تحديث', style: TextStyle(color: Colors.white)),
           ),
         ],
       ),
@@ -1050,11 +980,6 @@ class _CustomerDetailScreenState extends State<CustomerDetailScreen> {
         backgroundColor: Colors.green.shade700,
         foregroundColor: Colors.white,
         actions: [
-          IconButton(
-            icon: const Icon(Icons.edit),
-            onPressed: _showEditCustomerDialog,
-            tooltip: 'تعديل البيانات',
-          ),
           IconButton(
             icon: const Icon(Icons.delete_outline),
             onPressed: _showDeleteConfirmation,
@@ -1160,46 +1085,6 @@ class _CustomerDetailScreenState extends State<CustomerDetailScreen> {
                 ),
               ),
             ],
-          ),
-          const SizedBox(height: 8),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceAround,
-            children: [
-              _buildInfoChip('المعاملات', _transactions.length.toString(), Icons.receipt),
-              _buildInfoChip('آخر تحديث', _formatDate(customer.lastUpdated), Icons.update),
-              _buildInfoChip(
-                'الحالة',
-                customer.balance >= 0 ? 'نشط' : 'مدين',
-                customer.balance >= 0 ? Icons.check_circle : Icons.warning,
-                color: customer.balance >= 0 ? Colors.green : Colors.red,
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildInfoChip(String label, String value, IconData icon, {Color color = Colors.blue}) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-      decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.5),
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 16, color: color),
-          const SizedBox(width: 4),
-          Text(
-            '$value',
-            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
-          ),
-          const SizedBox(width: 4),
-          Text(
-            label,
-            style: TextStyle(fontSize: 10, color: Colors.grey.shade600),
           ),
         ],
       ),
@@ -1415,7 +1300,11 @@ class AllTransactionsScreen extends StatelessWidget {
     );
   }
 
+  String _formatDate(DateTime date) {
+    return '${date.day.toString().padLeft(2, '0')}/${date.month.toString().padLeft(2, '0')}/${date.year}';
+  }
+
   String _formatDateTime(DateTime date) {
-    return '${date.day.toString().padLeft(2, '0')}/${date.month.toString().padLeft(2, '0')}/${date.year} ${date.hour.toString().padLeft(2, '0')}:${date.minute.toString().padLeft(2, '0')}';
+    return '${_formatDate(date)} ${date.hour.toString().padLeft(2, '0')}:${date.minute.toString().padLeft(2, '0')}';
   }
 }
