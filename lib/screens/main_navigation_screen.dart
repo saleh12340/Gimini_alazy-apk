@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:pdf/widgets.dart' as pw;
+import 'package:printing/printing.dart';
 
 // 1. الشاشة الرئيسية للتنقل السفلي
 class MainNavigationScreen extends StatefulWidget {
@@ -192,7 +194,7 @@ class InvoicesScreen extends StatelessWidget {
   }
 }
 
-// 4. شاشة إنشاء وعرض الفاتورة التفصيلية (الجدول والدين التراكمي)
+// 4. شاشة إنشاء وعرض الفاتورة التفصيلية مع الطباعة والـ PDF
 class CreateInvoiceScreen extends StatefulWidget {
   final String customerName;
   const CreateInvoiceScreen({super.key, required this.customerName});
@@ -229,6 +231,41 @@ class _CreateInvoiceScreenState extends State<CreateInvoiceScreen> {
     });
   }
 
+  // دالة الطباعة وتصدير PDF
+  Future<void> _printInvoice(double totalBalance) async {
+    final doc = pw.Document();
+
+    doc.addPage(
+      pw.Page(
+        build: (pw.Context context) {
+          return pw.Column(
+            crossAxisAlignment: pw.CrossAxisAlignment.end,
+            children: [
+              pw.Text('بقالة العزي للمواد الغذائية', style: pw.TextStyle(fontSize: 22, fontWeight: pw.FontWeight.bold)),
+              pw.SizedBox(height: 10),
+              pw.Text('العميل: ${widget.customerName}', style: const pw.TextStyle(fontSize: 16)),
+              pw.Text('التاريخ: 2026/8/17', style: const pw.TextStyle(fontSize: 14)),
+              pw.Divider(),
+              pw.SizedBox(height: 10),
+              pw.Table.fromTextArray(
+                headers: ['التفاصيل', 'المبلغ', 'الرصيد'],
+                data: _items.map((item) {
+                  return [item['detail'].toString(), item['amount'].toString(), ''];
+                }).toList(),
+              ),
+              pw.SizedBox(height: 20),
+              pw.Text('إجمالي الحساب: $totalBalance ر.ي', style: pw.TextStyle(fontSize: 18, fontWeight: pw.FontWeight.bold)),
+            ],
+          );
+        },
+      ),
+    );
+
+    await Printing.layoutPdf(
+      onLayout: (format) async => doc.save(),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     double runningBalance = 0;
@@ -245,6 +282,13 @@ class _CreateInvoiceScreenState extends State<CreateInvoiceScreen> {
       appBar: AppBar(
         title: Text('دفتر الفاتورة: ${widget.customerName}'),
         centerTitle: true,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.print),
+            onPressed: () => _printInvoice(runningBalance),
+            tooltip: 'طباعة / تصدير PDF',
+          ),
+        ],
       ),
       body: Column(
         children: [
