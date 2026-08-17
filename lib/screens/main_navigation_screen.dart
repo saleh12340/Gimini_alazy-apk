@@ -4,7 +4,6 @@ import 'package:printing/printing.dart';
 import 'package:pdf/pdf.dart';
 import 'package:url_launcher/url_launcher.dart';
 
-// --- نموذج بيانات العميل ---
 class Customer {
   String name;
   String phone;
@@ -12,14 +11,12 @@ class Customer {
   Customer({required this.name, required this.phone, this.balance = 0.0});
 }
 
-// --- نموذج أصناف الفاتورة ---
 class InvoiceItem {
   String detail;
   double amount;
   InvoiceItem({required this.detail, required this.amount});
 }
 
-// 1. الشاشة الرئيسية للتنقل السفلي
 class MainNavigationScreen extends StatefulWidget {
   const MainNavigationScreen({super.key});
 
@@ -71,7 +68,6 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
   }
 }
 
-// 2. شاشة الحسابات والديون والعملاء (مع إمكانية إضافة عميل جديد برقم الهاتف)
 class AccountsScreen extends StatefulWidget {
   const AccountsScreen({super.key});
 
@@ -106,7 +102,7 @@ class _AccountsScreenState extends State<AccountsScreen> {
             TextField(
               controller: phoneController,
               keyboardType: TextInputType.phone,
-              decoration: const InputDecoration(labelText: 'رقم الواتساب (مثال: 771111111)'),
+              decoration: const InputDecoration(labelText: 'رقم الواتساب'),
             ),
           ],
         ),
@@ -221,13 +217,12 @@ class _AccountsScreenState extends State<AccountsScreen> {
   }
 }
 
-// 3. شاشة العميل الخاصة (تتيح إرسال واتساب، طباعة كشف الحساب، أو تعديله)
 class CustomerDetailScreen extends StatelessWidget {
   final Customer customer;
   const CustomerDetailScreen({super.key, required this.customer});
 
   Future<void> _sendWhatsAppMessage() async {
-    final url = Uri.parse("https://wa.me/967${customer.phone}?text=مرحباً بك يا أخي ${customer.name}، نود تذكيركم بأن رصيدكم الحالي لدى (بقالة العزي للمواد الغذائية) هو: ${customer.balance} ريال يمني. وشكراً لكم.");
+    final url = Uri.parse("https://wa.me/967${customer.phone}?text=مرحباً بك يا أخي ${customer.name}، رصيدكم الحالي لدى (بقالة العزي للمواد الغذائية) هو: ${customer.balance} ريال يمني.");
     if (await canLaunchUrl(url)) {
       await launchUrl(url, mode: LaunchMode.externalApplication);
     }
@@ -335,7 +330,6 @@ class CustomerDetailScreen extends StatelessWidget {
   }
 }
 
-// 4. شاشة الفواتير وسجل العمليات
 class InvoicesScreen extends StatelessWidget {
   const InvoicesScreen({super.key});
 
@@ -353,7 +347,7 @@ class InvoicesScreen extends StatelessWidget {
             child: ListTile(
               leading: const Icon(Icons.receipt, color: Colors.blue, size: 36),
               title: const Text('فاتورة العميل: طارق فؤاد الحاج', style: TextStyle(fontWeight: FontWeight.bold)),
-              subtitle: const Text('التاريخ: 2026/8/17 - الإجمالي: 20,650 ر.ي'),
+              subtitle: const Text('الإجمالي: 20,650 ر.ي'),
               trailing: const Icon(Icons.arrow_forward_ios, size: 16),
               onTap: () {
                 Navigator.push(
@@ -383,7 +377,6 @@ class InvoicesScreen extends StatelessWidget {
   }
 }
 
-// 5. شاشة إنشاء وعرض الفاتورة التفصيلية وتعديل اسم العميل مع الطابعة الحرارية والـ PDF
 class CreateInvoiceScreen extends StatefulWidget {
   final String customerName;
   const CreateInvoiceScreen({super.key, required this.customerName});
@@ -445,15 +438,13 @@ class _CreateInvoiceScreenState extends State<CreateInvoiceScreen> {
                   child: pw.Text('بقالة العزي للمواد الغذائية', style: pw.TextStyle(font: fontBold, fontSize: 14)),
                 ),
                 pw.Center(
-                  child: pw.Text('فاتورة مبيعات نقدية / أُجل', style: pw.TextStyle(font: font, fontSize: 9)),
+                  child: pw.Text('فاتورة مبيعات', style: pw.TextStyle(font: font, fontSize: 9)),
                 ),
                 pw.Divider(),
                 pw.Text('العميل: ${_nameController.text}', style: pw.TextStyle(font: fontBold, fontSize: 11)),
-                pw.Text('التاريخ: 2026/8/17', style: pw.TextStyle(font: font, fontSize: 9)),
                 pw.Divider(),
                 pw.SizedBox(height: 5),
                 pw.Table.fromTextArray(
-                  context: context,
                   cellStyle: pw.TextStyle(font: font, fontSize: 9),
                   headerStyle: pw.TextStyle(font: fontBold, fontSize: 9, color: PdfColors.white),
                   headerDecoration: const pw.BoxDecoration(color: PdfColors.green),
@@ -645,7 +636,6 @@ class _CreateInvoiceScreenState extends State<CreateInvoiceScreen> {
   }
 }
 
-// 6. شاشة المنتجات
 class ProductsScreenTab extends StatelessWidget {
   const ProductsScreenTab({super.key});
 
