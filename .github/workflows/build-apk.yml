@@ -1,26 +1,58 @@
-name: Build APK
+name: Flutter Build APK
 
 on:
   push:
-    branches: [ main ]
+    branches: [ main, master ]
   pull_request:
-    branches: [ main ]
+    branches: [ main, master ]
 
 jobs:
   build:
+    name: Build Flutter APK
     runs-on: ubuntu-latest
+    
     steps:
-    - uses: actions/checkout@v4
-    - uses: actions/setup-java@v3
-      with:
-        distribution: 'zulu'
-        java-version: '17'
-    - uses: subosito/flutter-action@v2
-      with:
-        flutter-version: '3.22.0'
-    - run: flutter pub get
-    - run: flutter build apk --release
-    - uses: actions/upload-artifact@v3
-      with:
-        name: release-apk
-        path: build/app/outputs/flutter-apk/app-release.apk
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'zulu'
+          java-version: '17'
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.22.0'
+          channel: 'stable'
+
+      - name: Get dependencies
+        run: flutter pub get
+
+      - name: Clean build
+        run: flutter clean
+
+      - name: Build APK
+        run: flutter build apk --release
+
+      - name: Build APK (split per ABI)
+        run: flutter build apk --split-per-abi
+
+      - name: Upload APK (Universal)
+        uses: actions/upload-artifact@v4  # تم التحديث إلى v4
+        with:
+          name: app-release-universal
+          path: build/app/outputs/flutter-apk/app-release.apk
+
+      - name: Upload APK (arm64)
+        uses: actions/upload-artifact@v4  # تم التحديث إلى v4
+        with:
+          name: app-arm64-release
+          path: build/app/outputs/flutter-apk/app-arm64-release.apk
+
+      - name: Upload APK (armeabi-v7a)
+        uses: actions/upload-artifact@v4  # تم التحديث إلى v4
+        with:
+          name: app-armeabi-v7a-release
+          path: build/app/outputs/flutter-apk/app-armeabi-v7a-release.apk
