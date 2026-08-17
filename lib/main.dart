@@ -1,43 +1,57 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:provider/provider.dart';
-import 'providers/app_provider.dart';
-import 'screens/main_navigation_screen.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
+// سنقوم لاحقاً بإنشاء ملف منفصل لإدارة البيانات
+// لكن سنبدأ هنا بتهيئة التطبيق الأساسية
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  // تهيئة SharedPreferences إذا احتجنا لحفظ البيانات محلياً
+  final prefs = await SharedPreferences.getInstance();
+  
   runApp(
-    ChangeNotifierProvider(
-      create: (_) => AppProvider()..loadProducts(),
-      child: const AlEzziApp(),
+    MultiProvider(
+      providers: [
+        // هنا سنضيف الـ Providers الخاصة بالعملاء والفواتير لاحقاً
+        ChangeNotifierProvider(create: (_) => GroceryProvider()),
+      ],
+      child: const EzziGroceryApp(),
     ),
   );
 }
 
-class AlEzziApp extends StatelessWidget {
-  const AlEzziApp({super.key});
+class EzziGroceryApp extends StatelessWidget {
+  const EzziGroceryApp({super.key});
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'بقالة العزي للمواد الغذائية',
       debugShowCheckedModeBanner: false,
-      locale: const Locale('ar', 'YE'),
-      supportedLocales: const [
-        Locale('ar', 'YE'),
-        Locale('en', 'US'),
-      ],
-      localizationsDelegates: const [
-        GlobalMaterialLocalizations.delegate,
-        GlobalWidgetsLocalizations.delegate,
-        GlobalCupertinoLocalizations.delegate,
-      ],
+      title: 'بقالة العزي',
       theme: ThemeData(
         primarySwatch: Colors.green,
-        useMaterial3: true,
-        fontFamily: 'sans-serif',
+        fontFamily: 'Arial',
       ),
-      home: const MainNavigationScreen(),
+      home: const HomeScreen(),
+    );
+  }
+}
+
+// كلاس إدارة البيانات الأساسي
+class GroceryProvider extends ChangeNotifier {
+  // سنقوم بإضافة وظائف العملاء والفواتير هنا في الخطوة القادمة
+}
+
+class HomeScreen extends StatelessWidget {
+  const HomeScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('بقالة العزي للمواد الغذائية')),
+      body: const Center(
+        child: Text('مرحباً بك في تطبيق بقالة العزي - ابدأ بإضافة العملاء'),
+      ),
     );
   }
 }
