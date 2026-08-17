@@ -1,9 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:pdf/widgets.dart' as pw;
-import 'package:printing/printing.dart';
-import 'package:pdf/pdf.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 void main() async {
@@ -37,7 +34,6 @@ class EzziGroceryApp extends StatelessWidget {
   }
 }
 
-// نموذج بيانات العميل
 class Customer {
   String name;
   String phone;
@@ -45,7 +41,6 @@ class Customer {
   Customer({required this.name, required this.phone, this.balance = 0.0});
 }
 
-// كلاس إدارة البيانات (Provider)
 class GroceryProvider extends ChangeNotifier {
   final List<Customer> _customers = [
     Customer(name: 'طارق فؤاد الحاج', phone: '771111111', balance: 20650),
@@ -60,7 +55,6 @@ class GroceryProvider extends ChangeNotifier {
   }
 }
 
-// الشاشة الرئيسية لإدارة العملاء
 class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});
 
@@ -160,7 +154,6 @@ class HomeScreen extends StatelessWidget {
   }
 }
 
-// شاشة تفاصيل العميل مع خيارات الطباعة والواتساب
 class CustomerDetailScreen extends StatelessWidget {
   final Customer customer;
   const CustomerDetailScreen({super.key, required this.customer});
@@ -170,50 +163,6 @@ class CustomerDetailScreen extends StatelessWidget {
     if (await canLaunchUrl(url)) {
       await launchUrl(url, mode: LaunchMode.externalApplication);
     }
-  }
-
-  Future<void> _printCustomerStatement() async {
-    final doc = pw.Document();
-    final font = await PdfGoogleFonts.cairoRegular();
-    final fontBold = await PdfGoogleFonts.cairoBold();
-
-    doc.addPage(
-      pw.Page(
-        pageFormat: PdfPageFormat.roll80,
-        build: (pw.Context context) {
-          return pw.Directionality(
-            textDirection: pw.TextDirection.rtl,
-            child: pw.Column(
-              crossAxisAlignment: pw.CrossAxisAlignment.start,
-              children: [
-                pw.Center(
-                  child: pw.Text('بقالة العزي للمواد الغذائية', style: pw.TextStyle(font: fontBold, fontSize: 14)),
-                ),
-                pw.Center(
-                  child: pw.Text('كشف حساب عميل', style: pw.TextStyle(font: font, fontSize: 10)),
-                ),
-                pw.Divider(),
-                pw.Text('اسم العميل: ${customer.name}', style: pw.TextStyle(font: fontBold, fontSize: 11)),
-                pw.Text('رقم الهاتف: ${customer.phone}', style: pw.TextStyle(font: font, fontSize: 10)),
-                pw.Divider(),
-                pw.SizedBox(height: 10),
-                pw.Row(
-                  mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-                  children: [
-                    pw.Text('الرصيد الإجمالي:', style: pw.TextStyle(font: fontBold, fontSize: 12)),
-                    pw.Text('${customer.balance} ر.ي', style: pw.TextStyle(font: fontBold, fontSize: 12)),
-                  ],
-                ),
-                pw.SizedBox(height: 15),
-                pw.Center(child: pw.Text('شكراً لتعاملكم معنا', style: pw.TextStyle(font: font, fontSize: 9))),
-              ],
-            ),
-          );
-        },
-      ),
-    );
-
-    await Printing.layoutPdf(onLayout: (format) async => doc.save());
   }
 
   @override
@@ -250,23 +199,17 @@ class CustomerDetailScreen extends StatelessWidget {
             ),
             const Spacer(),
             Row(
-              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 ElevatedButton.icon(
-                  style: ElevatedButton.styleFrom(backgroundColor: Colors.teal, foregroundColor: Colors.white),
+                  style: ElevatedButton.styleFrom(backgroundColor: Colors.teal, foregroundColor: Colors.white, padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12)),
                   onPressed: _sendWhatsAppMessage,
                   icon: const Icon(Icons.chat),
-                  label: const Text('مراسلة واتساب'),
-                ),
-                ElevatedButton.icon(
-                  style: ElevatedButton.styleFrom(backgroundColor: Colors.green, foregroundColor: Colors.white),
-                  onPressed: _printCustomerStatement,
-                  icon: const Icon(Icons.print),
-                  label: const Text('طباعة الكشف'),
+                  label: const Text('مراسلة كشف الحساب عبر واتساب', style: TextStyle(fontSize: 16)),
                 ),
               ],
             ),
-            const SizedBox(height: 20),
+            const SizedBox(height: 30),
           ],
         ),
       ),
