@@ -1,44 +1,17 @@
-name: Build APK
-
-on:
-  push:
-    branches:
-      - main
-
-jobs:
- build:
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Checkout repo
-        uses: actions/checkout@v4
-
-      - name: Set up JDK 17
-        uses: actions/setup-java@v4
-        with:
-          distribution: zulu
-          java-version: "17"
-
-      - name: Set up Flutter
-        uses: subosito/flutter-action@v2
-        with:
-          channel: stable
-          flutter-version: '3.24.5'
-
-      - name: Flutter Version
-        run: flutter --version
-
-      - name: Clean
-        run: flutter clean
-
-      - name: Get Packages
-        run: flutter pub get
-
-      - name: Build APK with full logs
-        run: cd android && ./gradlew assembleRelease --stacktrace --info
-
-      - name: Upload APK
-        uses: actions/upload-artifact@v4
-        with:
-          name: app-release
-          path: build/app/outputs/flutter-apk/app-release.apk
+    name: Build APK
+    on:
+      push:
+        branches: [ main ]
+    jobs:
+     build:
+        runs-on: ubuntu-latest
+        steps:
+          - uses: actions/checkout@v4
+          - uses: actions/setup-java@v4
+            with: { distribution: zulu, java-version: "17" }
+          - uses: subosito/flutter-action@v2
+            with: { channel: stable, flutter-version: '3.24.5' }
+          - run: flutter clean && flutter pub get
+          - run: flutter build apk --release --verbose
+          - uses: actions/upload-artifact@v4
+            with: { name: app-release, path: build/app/outputs/flutter-apk/app-release.apk }
