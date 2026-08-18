@@ -5,24 +5,40 @@ plugins {
 }
 
 android {
-    namespace 'com.ezzi.grocery'
+    namespace "com.example.gimini_alazy_apk"
     compileSdk 34
+    ndkVersion flutter.ndkVersion
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+
+    kotlinOptions {
+        jvmTarget = '17'
+    }
 
     defaultConfig {
-        applicationId 'com.ezzi.grocery'
-        minSdk 21
+        applicationId "com.example.gimini_alazy_apk"
+        minSdk 23
         targetSdk 34
-        versionCode 1
-        versionName '1.0.0'
+        versionCode flutterVersionCode.toInteger()
+        versionName flutterVersionName
     }
 
     buildTypes {
         release {
             signingConfig signingConfigs.debug
+            minifyEnabled false
+            shrinkResources false
         }
     }
 }
 
 flutter {
     source '../..'
+}
+
+dependencies {
+    implementation "org.jetbrains.kotlin:kotlin-stdlib:$kotlin_version"
 }
