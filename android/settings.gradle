@@ -24,4 +24,4 @@ rootProject.name = 'Gimini_alazy_apk'
 
 // Include the Android app module which lives in android/app
 include ':app'
-project(':app').projectDir = file('app')
+project(':app').projectDir = file('android/app')

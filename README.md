@@ -1,1 +1,0 @@
-Fix: point project(':app') to correct directory (file('app'))
