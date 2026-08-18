@@ -15,15 +15,20 @@ jobs:
       - uses: actions/setup-java@v4
         with:
           distribution: zulu
-          java-version: "17"
+          java-version: "17" # تمام كذا
 
       - uses: subosito/flutter-action@v2
         with:
           channel: stable
+          flutter-version: '3.24.5' # ثبت اصدار ثابت افضل
 
       - run: flutter --version
+      - run: flutter clean
       - run: flutter pub get
-      - run: flutter build apk --release
+      
+      # اضف هذا عشان نشوف الخطأ الحقي
+      - name: Build APK with logs
+        run: flutter build apk --release --verbose
 
       - uses: actions/upload-artifact@v4
         with:
