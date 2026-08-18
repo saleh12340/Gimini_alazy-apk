@@ -1,18 +1,17 @@
 import java.util.Properties
 
-// Determine Flutter SDK path from local.properties or FLUTTER_ROOT environment variable (CI-friendly)
-def flutterSdkPath = {
+pluginManagement {
+    // Determine Flutter SDK path from local.properties or FLUTTER_ROOT environment variable (CI-friendly)
     def properties = new Properties()
     def localProperties = file("local.properties")
     if (localProperties.exists()) {
         localProperties.withInputStream { properties.load(it) }
     }
-    def flutterSdk = properties.getProperty("flutter.sdk") ?: System.getenv("FLUTTER_ROOT")
-    assert flutterSdk != null, "flutter.sdk not set in local.properties and FLUTTER_ROOT not found in environment"
-    return flutterSdk
-}()
+    def flutterSdkPath = properties.getProperty("flutter.sdk") ?: System.getenv("FLUTTER_ROOT")
+    if (flutterSdkPath == null) {
+        throw new GradleException("flutter.sdk not set in local.properties and FLUTTER_ROOT not found in environment")
+    }
 
-pluginManagement {
     includeBuild("$flutterSdkPath/packages/flutter_tools/gradle")
     repositories {
         google()
