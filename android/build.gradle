@@ -1,42 +1,22 @@
-plugins {
-    id "com.android.application"
-    id "org.jetbrains.kotlin.android"
-    id "dev.flutter.flutter-gradle-plugin"
-}
-
-android {
-    namespace "com.example.gimini_alazy_apk" // غيرها لاسم الباكدج حقك
-    compileSdkVersion 34
-    ndkVersion flutter.ndkVersion
-
-    compileOptions {
-        sourceCompatibility JavaVersion.VERSION_17
-        targetCompatibility JavaVersion.VERSION_17
+buildscript {
+    ext.kotlin_version = '1.8.22' // pick a Kotlin version compatible with your AGP
+    repositories {
+        google()
+        mavenCentral()
     }
-
-    kotlinOptions {
-        jvmTarget = '17'
-    }
-
-    defaultConfig {
-        applicationId "com.example.gimini_alazy_apk" // غيرها لاسم الباكدج حقك
-        minSdkVersion 23 // خليها 23 او اكثر
-        targetSdkVersion 34
-        versionCode flutterVersionCode.toInteger()
-        versionName flutterVersionName
-    }
-
-    buildTypes {
-        release {
-            signingConfig signingConfigs.debug // غيرها لـ release لو عندك توقيع
-            minifyEnabled false
-            shrinkResources false
-        }
+    dependencies {
+        classpath 'com.android.tools.build:gradle:8.1.0' // pick AGP version that matches wrapper
+        classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlin_version"
     }
 }
 
-flutter {
-    source '../..'
+allprojects {
+    repositories {
+        google()
+        mavenCentral()
+    }
 }
 
-dependencies {}
+task clean(type: Delete) {
+    delete rootProject.buildDir
+}
