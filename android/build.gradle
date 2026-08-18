@@ -1,11 +1,8 @@
-plugins {
-    id 'com.android.application' version '8.3.2' apply false
-    id 'org.jetbrains.kotlin.android' version '1.9.22' apply false
-}
-
-allprojects {
-    repositories {
-        google()
-        mavenCentral()
+buildTypes {
+    release {
+        signingConfig signingConfigs.release
+        minifyEnabled false      // طفيناه عشان R8 ما يضرب
+        shrinkResources false    // طفيناه
+        proguardFiles getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro"
     }
 }
