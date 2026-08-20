@@ -26,6 +26,10 @@ jobs:
           channel: 'stable'
           cache: true
 
+      - name: Generate Android Project Files
+        run: |
+          flutter create . --org com.ezzi.grocery --project-name ezzi_grocery
+
       - name: Get Dependencies
         run: flutter pub get
 
